@@ -1,7 +1,8 @@
 import pandas as pd
+from config import LOG_FOLDER, PROCESSED_DATA_FOLDER, RAW_DATA_FOLDER
 
-input_path = 'final-data/remove_break_rounds.csv'
-output_path = 'final-data/no_blanks.csv'
+input_path = f'{PROCESSED_DATA_FOLDER}/remove_break_rounds.csv'
+output_path = f'{PROCESSED_DATA_FOLDER}/no_blanks.csv'
 
 df = pd.read_csv(input_path)
 

@@ -1,25 +1,20 @@
 import pandas as pd
+from config import LOG_FOLDER, PROCESSED_DATA_FOLDER, RAW_DATA_FOLDER
 
 # Create summary dataframes for each round
 
-input_path = 'final-data/ignore_suicides.csv'
-output_path = 'final-data/round_summary_adjusted.csv'
-
-# Mapping of player IDs to IP addresses
-player_ip_map = {
-    1: 'Player_172.19.137.208',
-    2: 'Player_172.19.114.48',
-    3: 'Player_172.19.119.51',
-    4: 'Player_172.19.116.18',
-    5: 'Player_172.19.120.104',
-    6: 'Player_172.19.117.18'
-}
+input_path = f'{PROCESSED_DATA_FOLDER}/ignore_suicides.csv' ##path
+output_path = f'{PROCESSED_DATA_FOLDER}/round_summary_adjusted.csv' ##path
 
 # Read the CSV file
 df = pd.read_csv(input_path)
 
+# Dynamically create player_ip_map
+unique_players = df['player_ip'].unique()
+player_ip_map = {i+1: player_ip for i, player_ip in enumerate(sorted(unique_players))}
+
 # Unique player IDs to include in the summary
-player_ids = list(range(1, 7))
+player_ids = list(range(1, len(player_ip_map) + 1))
 
 # Initialize a list to store the summary data
 summary_data = []
@@ -31,7 +26,7 @@ for game_round, group in df.groupby('game_round'):
     
     for player_id in player_ids:
         player_ip = player_ip_map[player_id]
-        player_data = group[group['player_id'] == player_id]
+        player_data = group[group['player_ip'] == player_ip]
         if not player_data.empty:
             last_record = player_data.iloc[-1]
             score = last_record['score'] if pd.notna(last_record['score']) else 0
@@ -54,3 +49,8 @@ summary_df = pd.DataFrame(summary_data)
 summary_df.to_csv(output_path, index=False)
 
 print(f"Round score summary saved to {output_path}")
+
+# Print the player_ip_map for reference
+print("\nPlayer ID to IP mapping:")
+for player_id, ip in player_ip_map.items():
+    print(f"Player {player_id}: {ip}")

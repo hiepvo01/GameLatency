@@ -7,6 +7,7 @@
 
 import re
 from datetime import datetime
+from config import LOG_FOLDER, PROCESSED_DATA_FOLDER, RAW_DATA_FOLDER
 
 def format_timestamp(timestamp):
     try:
@@ -19,8 +20,8 @@ def format_timestamp(timestamp):
     time_str = datetime_obj.strftime('%H:%M:%S')
     return f"{date_str} {time_str}"
 
-input_path = 'processes/processed_logs/start.log'
-output_path = 'processes/processed_logs/start_again.log'
+input_path = f'{LOG_FOLDER}/start.log' ##path
+output_path = f'{LOG_FOLDER}/start_again.log' ##path
 
 # Read the input file
 with open(input_path, 'r') as file:
