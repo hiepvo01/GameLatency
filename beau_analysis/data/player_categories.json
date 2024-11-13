@@ -1,0 +1,11 @@
+{
+    "affected": [
+        "Player_138.25.249.94",
+        "Player_138.25.249.38"
+    ],
+    "non_affected": [
+        "Player_138.25.249.81",
+        "Player_138.25.249.93",
+        "world"
+    ]
+}

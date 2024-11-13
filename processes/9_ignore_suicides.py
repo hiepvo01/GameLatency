@@ -3,11 +3,12 @@
 # For non-suicide events, it increments points and score normally and updates the last valid points.
 
 import pandas as pd
+from config import LOG_FOLDER, PROCESSED_DATA_FOLDER, RAW_DATA_FOLDER
 
 # Create summary dataframes for each round
 
-input_path = 'final-data/no_blanks.csv'
-output_path = 'final-data/ignore_suicides.csv'
+input_path = f'{PROCESSED_DATA_FOLDER}/no_blanks.csv' ##path
+output_path = f'{PROCESSED_DATA_FOLDER}/ignore_suicides.csv' ##path
 
 # Load the CSV file
 df = pd.read_csv(input_path)

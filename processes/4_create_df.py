@@ -1,8 +1,9 @@
 import pandas as pd
 import re
+from config import LOG_FOLDER, PROCESSED_DATA_FOLDER, RAW_DATA_FOLDER
 
-input_path = 'processes/processed_logs/start_again_twice.log'
-output_path = 'final-data/full.csv'
+input_path = f'{LOG_FOLDER}/start_again_twice.log' ##path
+output_path = f'{PROCESSED_DATA_FOLDER}/full.csv' ##path
 
 # Read the log file
 with open(input_path, 'r') as file:
@@ -18,11 +19,15 @@ current_latency = None
 def parse_kill(event):
     match = re.match(r'\\x08 \\x08Kill: (\d+) (\d+) (\d+): (.+) killed (.+) by (.+)', event)
     if match:
+        if "world" in match.group(4): # Removing brackets at <world>
+            killer = "world"
+        else:
+            killer=match.group(4)
         return {
             'killer_id': match.group(1),
             'victim_id': match.group(2),
             'weapon_id': match.group(3),
-            'killer_ip': match.group(4),
+            'killer_ip': killer,
             'victim_ip': match.group(5),
             'weapon': match.group(6),
         }

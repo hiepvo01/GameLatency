@@ -1,10 +1,11 @@
 import pandas as pd
+from config import LOG_FOLDER, PROCESSED_DATA_FOLDER, RAW_DATA_FOLDER
 
 # Remove rows related to kaos maps
 # Adjusts game round counter
 
-input_path = 'final-data/full.csv'
-output_path = 'final-data/remove_break_rounds.csv'
+input_path = f'{PROCESSED_DATA_FOLDER}/full.csv' ##path
+output_path = f'{PROCESSED_DATA_FOLDER}/remove_break_rounds.csv' ##path
 
 # Read the CSV file
 df = pd.read_csv(input_path)
@@ -24,7 +25,7 @@ current_map = None
 filtered_rows = []
 
 for index, row in df.iterrows():
-    if row['map'] != 'kaos' and pd.notna(row['map']):
+    if row['map'] != 'kaos2' and pd.notna(row['map']): # fix from kaos to kaos2
         row, current_map, game_round_counter = update_game_round(row, current_map, game_round_counter)
         filtered_rows.append(row)
 

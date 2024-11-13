@@ -3,17 +3,15 @@ import streamlit as st
 pages = {
     "Home": [ 
         st.Page("pages/landing_page.py", title="Welcome", icon=":material/waving_hand:"),
-        st.Page("pages/start_here.py", title="Start Here", icon=":material/start:"),
-        # st.Page("pages/dashboard.py", title="Dashboard", icon=":material/dashboard:"),
     ],
     "Demographic": [
         st.Page("pages/demographics.py", title="Participant Analysis", icon=":material/demography:"),  
     ],
     "Reports": [
-        st.Page("pages/player.py", title="Player Performance", icon=":material/person:"),
-        st.Page("pages/round.py", title="Round Scoreboard", icon=":material/grid_on:"),
-        # st.Page("pages/map.py", title="Map Analysis", icon=":material/public:"),
-        st.Page("pages/latency.py", title="Latency Analysis", icon=":material/signal_cellular_alt:")
+        st.Page("pages/visualizations/performance_distribution.py", title="Player Performance Distribution", icon=":material/person:"),
+        st.Page("pages/visualizations/strategy_distribution.py", title="Player Strategy Distribution", icon=":material/grid_on:"),
+        st.Page("pages/visualizations/latency_impact_performance.py", title="Latency Impact Player Performance", icon=":material/person:"),
+        st.Page("pages/visualizations/latency_impact_strategy.py", title="Latency Impact Strategy Adaptation", icon=":material/grid_on:"),
     ],
     "Gaming Experiments":[
         st.Page("pages/utsexperiments.py", title="UTS Campus Experiments", icon=":material/person:"),

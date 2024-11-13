@@ -2,11 +2,12 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import textwrap
+from config import IMPORT_FOLDER
 
 st.set_page_config(page_title="Demographics Analysis", page_icon="📊", layout="wide")
 
 # File path
-csv_file = 'survey-data/demographics.csv'
+csv_file = f'{IMPORT_FOLDER}/demographics.csv'
 
 # Function to plot interactive pie chart for a categorical column
 def plot_interactive_pie_chart(column_name, df):

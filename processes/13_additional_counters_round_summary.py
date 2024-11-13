@@ -1,8 +1,9 @@
 import pandas as pd
 import os
+from config import LOG_FOLDER, PROCESSED_DATA_FOLDER, RAW_DATA_FOLDER
 
-input_path = 'final-data/player_performance.csv'
-output_dir = 'final-data/player_performance_metadata_summary.csv'
+input_path = f'{PROCESSED_DATA_FOLDER}/player_performance.csv'
+output_dir = f'{PROCESSED_DATA_FOLDER}/player_performance_metadata_summary'  # Changed to a directory
 
 # Read the CSV file
 df = pd.read_csv(input_path)

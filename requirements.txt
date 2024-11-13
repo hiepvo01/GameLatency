@@ -1,4 +1,9 @@
 streamlit
-matplotlib
+streamlit-option-menu
+streamlit_toggle
+pandas
 plotly
+scipy
+statsmodels
+python-dotenv
 qrcode

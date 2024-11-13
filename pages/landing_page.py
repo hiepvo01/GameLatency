@@ -1,5 +1,6 @@
 import streamlit as st
 from PIL import Image
+from config import PROCESSED_DATA_FOLDER
 
 def welcome_page():
     # Create two columns for the logos

@@ -2,6 +2,7 @@ import streamlit as st
 from PIL import Image
 import qrcode
 import io
+from config import PROCESSED_DATA_FOLDER
 
 # Set page config
 st.set_page_config(page_title="UTS Campus Experiments", layout="wide")

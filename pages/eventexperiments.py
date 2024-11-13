@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime
 from PIL import Image
+from config import PROCESSED_DATA_FOLDER
 
 # Set page config
 st.set_page_config(page_title="Large Event Experiments", layout="wide")

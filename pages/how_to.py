@@ -1,4 +1,5 @@
 import streamlit as st
+from config import PROCESSED_DATA_FOLDER
 
 def main():
     st.header("Log Event Components")
