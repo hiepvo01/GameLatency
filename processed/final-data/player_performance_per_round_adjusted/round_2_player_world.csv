@@ -1,0 +1,2 @@
+timestamp,game_round,map,latency,event,killer_id,victim_id,weapon_id,killer_ip,victim_ip,weapon,player_id,score,player_ip,points,log_line,log_score
+2024-09-05 12:01:55,2,wrackdm17,0,Kill,1022,2,22,world,Player_138.25.249.94,MOD_TRIGGER_HURT,1022.0,1.0,world,1.0,2024-09-05 12:01:55: \x08 \x08Kill: 1022 2 22: <world> killed Player_138.25.249.94 by MOD_TRIGGER_HURT,1.0

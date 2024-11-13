@@ -1,7 +1,6 @@
 # Custom
 data/activity_data
 data/raw_log
-processed/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
