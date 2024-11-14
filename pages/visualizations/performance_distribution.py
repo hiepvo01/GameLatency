@@ -12,35 +12,34 @@ class KDAnalyzer:
         self.kills_df = kills_df
         self.deaths_df = deaths_df
         self.plot_generator = PlotGenerator()
+        self.data_loader = DataLoader()
 
-    def calculate_kd_ratio(self, kills_data: pd.DataFrame, deaths_data: pd.DataFrame) -> pd.DataFrame:
-        """Calculate K/D ratio while preserving individual events"""
-        # Get total deaths per player, latency, map combination
-        deaths_sum = deaths_data.groupby(['player', 'latency', 'map'])['frequency'].sum().reset_index()
-        deaths_sum = deaths_sum.rename(columns={'frequency': 'total_deaths'})
+    def get_metric_data(self, metric: str, players: List[str], maps: List[str], 
+                       latencies: List[float]) -> pd.DataFrame:
+        """Get data for specified metric (Kills, Deaths, or K/D)"""
+        # Get event counts
+        event_counts = self.data_loader.get_event_counts()
         
-        # Merge death totals with kill events
-        merged_data = kills_data.merge(
-            deaths_sum,
-            on=['player', 'latency', 'map'],
-            how='left'
-        )
+        # Add player categories
+        player_categories = self.data_loader.load_player_categories()
+        event_counts = self.data_loader.add_player_categories(event_counts, player_categories)
         
-        # Calculate K/D ratio for each kill event
-        merged_data['frequency'] = merged_data['frequency'] / merged_data['total_deaths'].replace(0, 1)
-        
-        # Preserve player category
-        merged_data['player_category'] = kills_data['player_category']
-        
-        return merged_data
-
-    def filter_data(self, df: pd.DataFrame, players: List[str], maps: List[str], 
-                   latencies: List[float]) -> pd.DataFrame:
-        return df[
-            (df['player'].isin(players)) &
-            (df['map'].isin(maps)) &
-            (df['latency'].isin(latencies))
+        # Filter data
+        filtered_df = event_counts[
+            (event_counts['player'].isin(players)) &
+            (event_counts['map'].isin(maps)) &
+            (event_counts['latency'].isin(latencies))
         ]
+        
+        # Select appropriate metric and rename to 'frequency' for consistency
+        if metric == "Kills":
+            filtered_df['frequency'] = filtered_df['kills']
+        elif metric == "Deaths":
+            filtered_df['frequency'] = filtered_df['deaths']
+        else:  # K/D Ratio
+            filtered_df['frequency'] = filtered_df['kd_ratio']
+            
+        return filtered_df
 
     def get_player_data(self, filtered_df: pd.DataFrame, player: str) -> pd.DataFrame:
         return filtered_df[filtered_df['player'] == player]
@@ -101,43 +100,27 @@ class StreamlitUI:
         # Load data
         kills_df = self.data_loader.load_data("kills")
         deaths_df = self.data_loader.load_data("deaths")
-        player_categories = self.data_loader.load_player_categories()
-        
-        # Add categories to both dataframes
-        kills_df = self.data_loader.add_player_categories(kills_df, player_categories)
-        deaths_df = self.data_loader.add_player_categories(deaths_df, player_categories)
-        
         analyzer = KDAnalyzer(kills_df, deaths_df)
         
         # Sidebar filters
         st.sidebar.markdown("### Filters")
         
-        # Metric selection
-        metric = st.sidebar.radio("Select Metric", ["Kills", "Deaths", "K/D Ratio"])
+        # Get event counts for unique players and maps
+        event_counts = self.data_loader.get_event_counts()
+        players = sorted(event_counts['player'].unique())
+        maps = sorted(event_counts['map'].unique())
+        latencies = sorted(event_counts['latency'].unique())
         
-        # Get common filters
-        players = sorted(set(kills_df['player']) & set(deaths_df['player']))
-        maps = sorted(set(kills_df['map']) & set(deaths_df['map']))
-        latencies = sorted(set(kills_df['latency']) & set(deaths_df['latency']))
+        # Metric selection with unique key
+        metric = st.sidebar.radio("Select Metric", ["Kills", "Deaths", "K/D Ratio"], key="metric_selector")
         
-        selected_players = st.sidebar.multiselect("Select Players", players, default=players[0])
-        selected_maps = st.sidebar.multiselect("Select Maps", maps, default=maps[0])
-        selected_latencies = st.sidebar.multiselect(
-            "Select Latencies", 
-            latencies, 
-            default=latencies
-        )
+        selected_players = st.sidebar.multiselect("Select Players", players, default=players[0], key="player_selector")
+        selected_maps = st.sidebar.multiselect("Select Maps", maps, default=maps[0], key="map_selector")
+        selected_latencies = st.sidebar.multiselect("Select Latencies", latencies, default=latencies, key="latency_selector")
         
-        # Get appropriate dataframe based on metric
-        if metric == "Kills":
-            filtered_df = analyzer.filter_data(kills_df, selected_players, selected_maps, selected_latencies)
-        elif metric == "Deaths":
-            filtered_df = analyzer.filter_data(deaths_df, selected_players, selected_maps, selected_latencies)
-        else:  # K/D Ratio
-            filtered_kills = analyzer.filter_data(kills_df, selected_players, selected_maps, selected_latencies)
-            filtered_deaths = analyzer.filter_data(deaths_df, selected_players, selected_maps, selected_latencies)
-            filtered_df = analyzer.calculate_kd_ratio(filtered_kills, filtered_deaths)
-        
+        # Get processed data for the selected metric
+        filtered_df = analyzer.get_metric_data(metric, selected_players, selected_maps, selected_latencies)
+
         # Main content tabs
         tab1, tab2 = st.tabs(["Distribution Analysis", "Statistical Tests"])
         
@@ -145,7 +128,7 @@ class StreamlitUI:
             self.render_distribution_tab(analyzer, filtered_df, selected_players, selected_latencies, metric)
         with tab2:
             self.render_statistical_tests_tab(analyzer, filtered_df, selected_players, selected_latencies, metric)
-
+            
     def render_distribution_tab(self, analyzer: KDAnalyzer, filtered_df: pd.DataFrame,
                           selected_players: List[str], selected_latencies: List[float],
                           metric: str):
@@ -200,7 +183,7 @@ class StreamlitUI:
 
         # Individual Player Analysis
         st.subheader("Individual Player Analysis")
-        selected_player = st.selectbox("Select Player", selected_players)
+        selected_player = st.selectbox("Select Player", selected_players, key="player_analysis_selector")
         
         player_data = analyzer.get_player_data(filtered_df, selected_player)
         if not player_data.empty:
@@ -238,9 +221,8 @@ class StreamlitUI:
                 col.metric(label, f"{value:.2f}" if isinstance(value, float) else value)
 
             if len(selected_latencies) > 1:
-                averaged_player_data = analyzer.get_averaged_data(player_data)
                 st.plotly_chart(analyzer.plot_generator.create_box_plot(
-                    averaged_player_data, 'latency', 'frequency', 'player_category',
+                    player_data, 'latency', 'frequency', 'player_category',
                     f"Average {metric} by Latency for {selected_player}"
                 ), use_container_width=True)
 
@@ -267,8 +249,8 @@ class StreamlitUI:
 
             st.plotly_chart(analyzer.plot_generator.create_ks_test_plot(results_df),
                           use_container_width=True)
-    
-# Initialize and run the app only when this file is run directly
+
+# Initialize and run the app
 if __name__ == "__main__":
     data_loader = DataLoader()
     ui = StreamlitUI(data_loader)
