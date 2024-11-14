@@ -7,3 +7,4 @@ scipy
 statsmodels
 python-dotenv
 qrcode
+matplotlib

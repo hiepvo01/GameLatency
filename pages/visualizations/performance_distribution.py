@@ -147,8 +147,8 @@ class StreamlitUI:
             self.render_statistical_tests_tab(analyzer, filtered_df, selected_players, selected_latencies, metric)
 
     def render_distribution_tab(self, analyzer: KDAnalyzer, filtered_df: pd.DataFrame,
-                              selected_players: List[str], selected_latencies: List[float],
-                              metric: str):
+                          selected_players: List[str], selected_latencies: List[float],
+                          metric: str):
         if not selected_players:
             st.warning("Please select at least one player from the sidebar.")
             return
@@ -159,6 +159,18 @@ class StreamlitUI:
         if not filtered_df.empty:
             freq_data = filtered_df['frequency'].values
             stats = NormalityStats.from_data(freq_data)
+            
+            # Add overall histogram
+            st.plotly_chart(
+                self.plot_generator.create_histogram(
+                    filtered_df,
+                    value_column='frequency',
+                    category_column='player_category',
+                    title=f"Overall {metric} Distribution",
+                    nbins=30
+                ),
+                use_container_width=True
+            )
             
             # Get averaged data for the line plot
             averaged_data = analyzer.get_averaged_data(filtered_df)
@@ -173,14 +185,12 @@ class StreamlitUI:
             ), use_container_width=True)
 
             col1, col2 = st.columns(2)
-            # Distribution metrics
             metrics_df = pd.DataFrame({
                 'Value': [f"{stats.mean:.2f}", f"{stats.median:.2f}", 
-                         f"{stats.std_dev:.2f}", f"{stats.sample_size}"]
+                        f"{stats.std_dev:.2f}", f"{stats.sample_size}"]
             }, index=['Mean', 'Median', 'Std Dev', 'Sample Size'])
             col1.dataframe(metrics_df)
             
-            # Shape analysis
             shape_text = [
                 f"Distribution is {'symmetric' if abs(stats.skewness) < 0.5 else 'asymmetric'}",
                 f"Tails are {'normal' if abs(stats.kurtosis) < 0.5 else 'non-normal'} weight",
@@ -194,22 +204,35 @@ class StreamlitUI:
         
         player_data = analyzer.get_player_data(filtered_df, selected_player)
         if not player_data.empty:
+            # Add individual player histogram
+            st.plotly_chart(
+                self.plot_generator.create_histogram(
+                    player_data,
+                    value_column='frequency',
+                    title=f"{metric} Distribution for {selected_player}",
+                    nbins=30
+                ),
+                use_container_width=True
+            )
+
             col1, col2 = st.columns(2)
             col1.plotly_chart(analyzer.plot_generator.create_cdf_plot(
                 player_data['frequency'].values,
-                f"CDF of {metric} for {selected_player}"
+                f"CDF of {metric} for {selected_player}",
+                player_data['player_category'].iloc[0]  # Add player category for coloring
             ), use_container_width=True)
             
             col2.plotly_chart(analyzer.plot_generator.create_qq_plot(
                 player_data['frequency'].values,
-                f"Q-Q Plot of {metric} for {selected_player}"
+                f"Q-Q Plot of {metric} for {selected_player}",
+                player_data['player_category'].iloc[0]  # Add player category for coloring
             ), use_container_width=True)
 
             player_stats = NormalityStats.from_data(player_data['frequency'].values)
             cols = st.columns(4)
             for (label, value), col in zip(
                 [("Mean", player_stats.mean), ("Median", player_stats.median),
-                 ("Std Dev", player_stats.std_dev), ("Sample Size", player_stats.sample_size)],
+                ("Std Dev", player_stats.std_dev), ("Sample Size", player_stats.sample_size)],
                 cols
             ):
                 col.metric(label, f"{value:.2f}" if isinstance(value, float) else value)

@@ -194,6 +194,65 @@ class PlotGenerator:
             yaxis=dict(gridcolor='lightgrey', zerolinecolor='lightgrey')
         )
         return fig
+    
+    @staticmethod
+    def create_histogram(data: pd.DataFrame, value_column: str, 
+                        category_column: str = None, title: str = "Frequency Distribution",
+                        nbins: int = 30) -> go.Figure:
+        """
+        Create a histogram of the data with optional category-based coloring
+        
+        Parameters:
+        -----------
+        data : pd.DataFrame
+            The dataframe containing the data
+        value_column : str
+            The column name containing the values to plot
+        category_column : str, optional
+            The column name containing categories for coloring
+        title : str
+            Title of the plot
+        nbins : int
+            Number of bins in the histogram
+        
+        Returns:
+        --------
+        go.Figure
+            Plotly figure object containing the histogram
+        """
+        fig = go.Figure()
+        
+        if category_column is not None:
+            # Create separate histogram for each category
+            for category in sorted(data[category_column].unique()):
+                category_data = data[data[category_column] == category][value_column]
+                fig.add_trace(go.Histogram(
+                    x=category_data,
+                    name=category,
+                    opacity=0.75,
+                    nbinsx=nbins,
+                    marker_color=PlotGenerator.COLOR_MAP.get(category, 'gray')
+                ))
+            fig.update_layout(barmode='overlay')
+        else:
+            # Single histogram for all data
+            fig.add_trace(go.Histogram(
+                x=data[value_column],
+                nbinsx=nbins,
+                marker_color='blue'
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title=value_column,
+            yaxis_title="Count",
+            plot_bgcolor='white',
+            showlegend=category_column is not None,
+            xaxis=dict(gridcolor='lightgrey', zerolinecolor='lightgrey'),
+            yaxis=dict(gridcolor='lightgrey', zerolinecolor='lightgrey')
+        )
+        
+        return fig
 
     @staticmethod
     def create_box_plot(df: pd.DataFrame, x_col: str, y_col: str, 

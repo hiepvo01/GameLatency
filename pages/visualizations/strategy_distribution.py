@@ -37,7 +37,6 @@ class PerformanceAnalyzer:
         return filtered_df[filtered_df['player'] == player]
     
     def get_averaged_data(self, filtered_df: pd.DataFrame) -> pd.DataFrame:
-        # Group by latency and player_category and calculate mean frequency
         return filtered_df.groupby(['latency', 'player_category'])['frequency'].mean().reset_index()
 
     def calculate_normality_results(self, filtered_df: pd.DataFrame, players: List[str], 
@@ -145,12 +144,23 @@ class StreamlitUI:
             st.warning("Please select at least one player from the sidebar.")
             return
 
-        # Overall Distribution Analysis
         st.subheader("Overall Distribution Analysis")
         
         if not filtered_df.empty:
             freq_data = filtered_df['frequency'].values
             stats = NormalityStats.from_data(freq_data)
+            
+            # Create overall histogram
+            st.plotly_chart(
+                self.plot_generator.create_histogram(
+                    filtered_df,
+                    value_column='frequency',
+                    category_column='player_category',
+                    title="Overall Frequency Distribution",
+                    nbins=30
+                ),
+                use_container_width=True
+            )
             
             # Get averaged data for the line plot
             averaged_data = analyzer.get_averaged_data(filtered_df)
@@ -165,14 +175,12 @@ class StreamlitUI:
             ), use_container_width=True)
 
             col1, col2 = st.columns(2)
-            # Distribution metrics
             metrics_df = pd.DataFrame({
                 'Value': [f"{stats.mean:.2f}", f"{stats.median:.2f}", 
                          f"{stats.std_dev:.2f}", f"{stats.sample_size}"]
             }, index=['Mean', 'Median', 'Std Dev', 'Sample Size'])
             col1.dataframe(metrics_df)
             
-            # Shape analysis
             shape_text = [
                 f"Distribution is {'symmetric' if abs(stats.skewness) < 0.5 else 'asymmetric'}",
                 f"Tails are {'normal' if abs(stats.kurtosis) < 0.5 else 'non-normal'} weight",
@@ -186,15 +194,28 @@ class StreamlitUI:
         
         player_data = analyzer.get_player_data(filtered_df, selected_player)
         if not player_data.empty:
+            # Add histogram for individual player
+            st.plotly_chart(
+                self.plot_generator.create_histogram(
+                    player_data,
+                    value_column='frequency',
+                    title=f"Frequency Distribution for {selected_player}",
+                    nbins=30
+                ),
+                use_container_width=True
+            )
+
             col1, col2 = st.columns(2)
             col1.plotly_chart(analyzer.plot_generator.create_cdf_plot(
                 player_data['frequency'].values,
-                f"CDF of Frequency for {selected_player}"
+                f"CDF of Frequency for {selected_player}",
+                player_data['player_category'].iloc[0]
             ), use_container_width=True)
             
             col2.plotly_chart(analyzer.plot_generator.create_qq_plot(
                 player_data['frequency'].values,
-                f"Q-Q Plot of Frequency for {selected_player}"
+                f"Q-Q Plot of Frequency for {selected_player}",
+                player_data['player_category'].iloc[0]
             ), use_container_width=True)
 
             player_stats = NormalityStats.from_data(player_data['frequency'].values)
@@ -236,13 +257,11 @@ class StreamlitUI:
             st.plotly_chart(analyzer.plot_generator.create_ks_test_plot(results_df),
                           use_container_width=True)
 
-# Initialize and run the app only when this file is run directly
 if __name__ == "__main__":
     data_loader = DataLoader()
     ui = StreamlitUI(data_loader)
     ui.run()
 else:
-    # When imported as a page, create and run the UI
     data_loader = DataLoader()
     ui = StreamlitUI(data_loader)
     ui.run()
