@@ -8,7 +8,7 @@ pages = {
         st.Page("pages/demographics.py", title="Participant Analysis", icon=":material/demography:"),  
     ],
     "Reports": [
-        # st.Page("pages/visualizations/performance_distribution.py", title="Player Performance Distribution", icon=":material/person:"),
+        st.Page("pages/visualizations/performance_distribution.py", title="Player Performance Distribution", icon=":material/person:"),
         st.Page("pages/visualizations/strategy_distribution.py", title="Player Strategy Distribution", icon=":material/grid_on:"),
         # st.Page("pages/visualizations/latency_impact_performance.py", title="Latency Impact Player Performance", icon=":material/person:"),
         st.Page("pages/visualizations/latency_impact_strategy.py", title="Latency Impact Strategy Adaptation", icon=":material/grid_on:"),
