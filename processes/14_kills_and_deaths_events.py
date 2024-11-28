@@ -29,11 +29,13 @@ class DataProcessor:
     def _format_timestamp(self, timestamp):
         """Convert Unix timestamp to formatted datetime string."""
         try:
+            # Try to parse as a float Unix timestamp
             datetime_obj = datetime.fromtimestamp(float(timestamp))
             date_str = datetime_obj.strftime('%Y-%m-%d')
             time_str = datetime_obj.strftime('%H:%M:%S')
             return f"{date_str} {time_str}"
         except ValueError:
+            # If it fails, assume the timestamp is already formatted
             return timestamp
 
     def _load_affected_players(self):
@@ -44,22 +46,26 @@ class DataProcessor:
             with open(affected_file_path, 'r') as f:
                 lines = f.readlines()
             
+            # Clean up lines
             lines = [line.strip() for line in lines if line.strip()]
             log_name = self.log_file.replace('.log', '')
             
             print(f"Looking for affected players for log file: {log_name}")
             
+            # Process the lines
             affected_ips = []
             i = 0
             while i < len(lines):
                 current_line = lines[i].strip()
                 if current_line == log_name:
+                    # Next two lines contain the IPs
                     if i + 2 <= len(lines):
                         ip1 = lines[i + 1].strip()
                         ip2 = lines[i + 2].strip()
                         affected_ips.extend([f"Player_{ip1}", f"Player_{ip2}"])
                 i += 1
             
+            # Remove duplicates while preserving order
             self.affected_players = list(dict.fromkeys(affected_ips))
             
             print(f"Found {len(self.affected_players)} affected players for log file {self.log_file}")
@@ -76,9 +82,10 @@ class DataProcessor:
         """Save player categories to JSON file."""
         os.makedirs(self.output_folder, exist_ok=True)
         
+        # Create categories dictionary
         categories = {
             "affected": self.affected_players,
-            "non_affected": []
+            "non_affected": []  # Will be filled later with other players
         }
         
         with open(f'{self.output_folder}/player_categories.json', 'w') as f:
@@ -88,18 +95,23 @@ class DataProcessor:
         """Process all player data and save results."""
         print(f"Processing data for log file: {self.log_file}")
         
+        # Load affected players first
         print("Loading affected players list...")
         self._load_affected_players()
         
+        # Load player performance data
         print("Loading player performance data...")
         player_performance = pd.read_csv(f'{self.processed_data_folder}/player_performance.csv')
         player_performance['timestamp'] = player_performance['timestamp'].apply(self._format_timestamp)
         player_performance['timestamp'] = pd.to_datetime(player_performance['timestamp'])
 
+        # Get unique players, maps, and latencies
         all_players = pd.concat([player_performance['killer_ip'], player_performance['victim_ip']]).unique()
         
+        # Update non-affected players list
         non_affected = [p for p in all_players if p not in self.affected_players]
         
+        # Update and save player categories with complete list
         categories = {
             "affected": self.affected_players,
             "non_affected": non_affected
@@ -110,12 +122,15 @@ class DataProcessor:
         all_maps = player_performance['map'].unique()
         all_latencies = sorted(player_performance['latency'].unique())
 
+        # Process kills data
         print("\nProcessing kills data...")
         kills_data = self._process_event_type(player_performance, all_players, all_maps, all_latencies, "Kills")
         
+        # Process deaths data
         print("\nProcessing deaths data...")
         deaths_data = self._process_event_type(player_performance, all_players, all_maps, all_latencies, "Deaths")
 
+        # Save processed data
         print("\nSaving processed data...")
         self._save_processed_data(kills_data, deaths_data)
 
@@ -134,6 +149,7 @@ class DataProcessor:
 
                 for map_name in all_maps:
                     for latency in all_latencies:
+                        # Get relevant events
                         events = player_performance[
                             (player_performance[f'{player_role}_ip'] == player) &
                             (player_performance['map'] == map_name) &
@@ -143,18 +159,20 @@ class DataProcessor:
                         if len(events) == 0:
                             continue
 
+                        # Calculate input frequencies
                         input_freqs = self._calculate_input_frequencies(events, activity_data)
                         
+                        # Add to results
                         for input_col in self.input_columns:
                             if input_freqs[input_col]:  # Only add if we have data
-                                for event_idx, freq in enumerate(input_freqs[input_col]):
+                                for freq in input_freqs[input_col]:
                                     all_data.append({
                                         'player': player,
                                         'map': map_name,
                                         'latency': latency,
                                         'input_type': input_col,
                                         'frequency': freq,
-                                        'timestamp': events.iloc[event_idx]['timestamp']
+                                        'timestamp': events.iloc[0]['timestamp']
                                     })
 
             except Exception as e:
@@ -183,22 +201,9 @@ class DataProcessor:
             start_time = event_time + timedelta(seconds=self.time_range[0])
             end_time = event_time + timedelta(seconds=self.time_range[1])
             
-            # Get the last data point BEFORE the start time
-            start_data = activity_data[activity_data['timestamp'] <= start_time]
-            if not start_data.empty:
-                start_data = start_data.iloc[-1]
-            else:
-                # If no data before window start, use first available point
-                start_data = activity_data.iloc[0]
-                
-            # Get the last data point at or before end time
-            end_data = activity_data[activity_data['timestamp'] <= end_time]
-            if not end_data.empty:
-                end_data = end_data.iloc[-1]
-            else:
-                continue  # Skip if no end data available
+            start_data = activity_data[activity_data['timestamp'] <= start_time].iloc[-1] if not activity_data[activity_data['timestamp'] <= start_time].empty else pd.Series({col: 0 for col in self.input_columns})
+            end_data = activity_data[activity_data['timestamp'] <= end_time].iloc[-1] if not activity_data[activity_data['timestamp'] <= end_time].empty else pd.Series({col: 0 for col in self.input_columns})
             
-            # Calculate the actual number of inputs during the window
             for col in self.input_columns:
                 input_frequencies[col].append(end_data[col] - start_data[col])
 

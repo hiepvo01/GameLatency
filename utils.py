@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from scipy import stats
 from dataclasses import dataclass
-from typing import List, Tuple, Dict
+from typing import List
 import json
 from config import PROCESSED_DATA_FOLDER
 import streamlit as st
@@ -36,101 +36,9 @@ class NormalityStats:
 class DataLoader:
     def __init__(self):
         self.data_folder = PROCESSED_DATA_FOLDER
-        self.expected_columns = ['player', 'map', 'latency', 'input_type', 'frequency', 'timestamp']
-        self.expected_inputs = ['mouse_clicks', 'SPACE', 'A', 'W', 'S', 'D']
 
     def load_data(self, data_type: str = "kills") -> pd.DataFrame:
-        """Load and validate the processed data."""
-        df = self._cached_load_data(self.data_folder, data_type)
-        
-        # Validate columns
-        missing_cols = [col for col in self.expected_columns if col not in df.columns]
-        if missing_cols:
-            raise ValueError(f"Missing required columns: {missing_cols}")
-        
-        # Convert timestamp to datetime
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
-        # Validate input types
-        invalid_inputs = df[~df['input_type'].isin(self.expected_inputs)]['input_type'].unique()
-        if len(invalid_inputs) > 0:
-            print(f"Warning: Found unexpected input types: {invalid_inputs}")
-        
-        return df
-
-    def get_event_counts(self) -> pd.DataFrame:
-        """
-        Get combined kill and death counts for each player under different conditions.
-        Returns DataFrame with kills and deaths per player/map/latency.
-        """
-        # Load both kills and deaths data
-        kills_df = self.load_data("kills")
-        deaths_df = self.load_data("deaths")
-        
-        # Count unique events (timestamps) for kills
-        kills_counts = (kills_df.groupby(['player', 'map', 'latency'])
-                               ['timestamp']
-                               .nunique()
-                               .reset_index()
-                               .rename(columns={'timestamp': 'kills'}))
-        
-        # Count unique events (timestamps) for deaths
-        deaths_counts = (deaths_df.groupby(['player', 'map', 'latency'])
-                                ['timestamp']
-                                .nunique()
-                                .reset_index()
-                                .rename(columns={'timestamp': 'deaths'}))
-        
-        # Merge kills and deaths data
-        event_counts = kills_counts.merge(
-            deaths_counts,
-            on=['player', 'map', 'latency'],
-            how='outer'
-        ).fillna(0)
-        
-        # Add KD ratio
-        event_counts['kd_ratio'] = event_counts['kills'] / event_counts['deaths'].replace(0, 1)
-        
-        return event_counts
-
-    def get_input_stats(self, data_type: str = "kills") -> pd.DataFrame:
-        """
-        Get statistics for each input type around events.
-        Returns DataFrame with input statistics per player/map/latency/input_type.
-        """
-        df = self.load_data(data_type)
-        
-        input_stats = (df.groupby(['player', 'map', 'latency', 'input_type'])
-                        ['frequency']
-                        .agg(['count', 'mean', 'std', 'min', 'max'])
-                        .reset_index())
-        
-        return input_stats
-
-    def get_full_player_stats(self) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
-        """
-        Get comprehensive player statistics including event counts and input stats.
-        Returns:
-        - DataFrame with event counts
-        - Dictionary containing input stats for kills and deaths
-        """
-        # Get event counts
-        event_counts = self.get_event_counts()
-        
-        # Get input statistics
-        kill_input_stats = self.get_input_stats("kills")
-        death_input_stats = self.get_input_stats("deaths")
-        
-        input_stats = {
-            'kills': kill_input_stats,
-            'deaths': death_input_stats
-        }
-        
-        # Add player categories
-        player_categories = self.load_player_categories()
-        event_counts = self.add_player_categories(event_counts, player_categories)
-        
-        return event_counts, input_stats
+        return self._cached_load_data(self.data_folder, data_type)
 
     @staticmethod
     @st.cache_data
@@ -151,18 +59,6 @@ class DataLoader:
             else 'Unknown'
         )
         return df
-
-    def validate_time_windows(self, df: pd.DataFrame) -> None:
-        """Check for suspicious patterns in the data."""
-        # Check for duplicate timestamps for same player/input
-        dupes = df.groupby(['player', 'input_type', 'timestamp']).size()
-        if (dupes > 1).any():
-            print("Warning: Found duplicate records for same player/input/timestamp")
-            
-        # Check time distribution
-        time_diffs = df.groupby('player')['timestamp'].diff()
-        if time_diffs.dt.total_seconds().min() < 1:
-            print("Warning: Found very small time gaps between events")
 
 class StatisticalAnalyzer:
     @staticmethod
