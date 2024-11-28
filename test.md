@@ -3,7 +3,7 @@
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://gamelatency.streamlit.app/)
 
 ## Overview
-This repository contains a data processing pipeline and visualization dashboard for analyzing IoQuake3 game log files. It extracts player activities and generates structured data including timestamps, game rounds, latencies, maps, player interactions (kills/deaths), weapons used, and scoring information.
+This repository contains a data processing pipeline and visualization dashboard for analyzing game log files as part of the PDD9 Game Latency Impact Study. The system extracts player activities and generates structured data including timestamps, game rounds, latencies, maps, player interactions (kills/deaths), weapons used, and scoring information to understand the impact of network latency on player performance.
 
 ## Live Demo
 Access the interactive dashboard at: [https://gamelatency.streamlit.app/](https://gamelatency.streamlit.app/)
@@ -11,37 +11,36 @@ Access the interactive dashboard at: [https://gamelatency.streamlit.app/](https:
 ## Features
 - Automated log file processing and data extraction
 - CSV output generation with detailed player statistics
-- Interactive visualization dashboard with statistical analysis built with Streamlit
+- Interactive visualization dashboard built with Streamlit
 - Support for multiple data processing pipelines
 - Configurable file paths and processing parameters
+- Real-time latency impact analysis
+- Player performance metrics visualization
 
 ## Directory Structure
 ```
 .
-├── app.py             # Main Streamlit application file
-├── config.py          # Configuration and file paths setup
-├── utils.py           # Core helper functions and utilities
-├── pages/             # Streamlit sidebar pages for visualization
-├── images/            # Static assets (logos, images)
+├── pages/              # Streamlit sidebar pages for visualization
+├── images/             # Static assets (logos, images)
 ├── data/              
-│   ├── activity_data/ # Player activity CSV files
-│   └── raw_log/      # Raw log files and player lists
-├── processes/         # Data processing scripts
-└── processed/         # Output directory for cleaned data
-
+│   ├── activity_data/  # Player activity CSV files
+│   └── raw_log/       # Raw log files and player lists
+├── processes/          # Data processing scripts
+├── processed/          # Output directory for cleaned data
+└── utils/             # Helper functions and utilities
 ```
 
 ## Prerequisites
 - Python 3.8 or higher
 - Virtual environment management tool (venv, conda)
-- Access to raw data files (contact team for download instructions)
+- Access to raw data files (contact UTS TRU lab for download instructions)
 
 ## Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/hiepvo01/GameLatency.git
-cd GameLatency
+git clone <repository-url>
+cd <repository-name>
 ```
 
 2. Create and activate a virtual environment:
@@ -77,7 +76,7 @@ This will:
 - Generate cleaned data in the `processed/` directory
 - Overwrite any existing processed data
 
-2. Launch the visualization dashboard:
+2. Launch the visualization dashboard locally:
 ```bash
 streamlit run app.py
 ```
@@ -108,3 +107,6 @@ streamlit run app.py
 
 ## Support
 For access to raw data files or technical support, please contact the team at UTS TRU lab.
+
+## Deployment
+The application is deployed using Streamlit Cloud and can be accessed at [https://gamelatency.streamlit.app/](https://gamelatency.streamlit.app/)
