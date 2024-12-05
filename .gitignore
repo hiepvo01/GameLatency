@@ -1,6 +1,7 @@
 # Custom
-data/activity_data
-data/raw_log
+app/import
+processed/
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

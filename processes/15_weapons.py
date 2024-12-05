@@ -14,76 +14,129 @@ class WeaponStatsExtractor:
         self.weapons = self.input_csv['weapon'].unique()
         self.players = self.input_csv["killer_ip" and "victim_ip"].unique()
         self.maps = self.input_csv["map"].unique()
-        self.input_csv['player'] = self.input_csv['player_ip']
+        self.input_csv.loc[:, 'player'] = self.input_csv['player_ip']
+
+        # Define weapon categories
+        self.weapon_categories = {
+            'Short Range': ['MOD_SHOTGUN', 'MOD_MACHINEGUN', 'MOD_LIGHTNING', 
+                          'MOD_GRENADE', 'MOD_GRENADE_SPLASH'],
+            'Long Range': ['MOD_RAILGUN', 'MOD_ROCKET', 'MOD_ROCKET_SPLASH', 
+                          'MOD_PLASMA', 'MOD_PLASMA_SPLASH']
+        }
+
+        # Initialize kill count columns
         for weapon in self.weapons:
-            self.input_csv[f'{weapon}_kill_count'] = 0
+            self.input_csv.loc[:, f'{weapon}_kill_count'] = 0
+            
+        # Initialize category columns
+        for category in self.weapon_categories.keys():
+            self.input_csv.loc[:, f'{category}_kills'] = 0
         
-# Function to safely convert to string and handle NaN values
     def safe_str(self, x):
+        """Function to safely convert to string and handle NaN values"""
         return str(x) if pd.notnull(x) else np.nan
     
     def filter_player(self):
-        #self.players = self.input_csv["killer_ip" and "victim_ip"].unique()
-        #print(self.players)
         self.players_stats = {}
         for player in self.players:
             self.players_stats[player] = {}
-            for map in self.input_csv['map'].unique():
-                self.players_stats[player][map] = {}
+            for map_name in self.input_csv['map'].unique():
+                self.players_stats[player][map_name] = {}
                 for latency in self.input_csv['latency'].unique():
-                    self.players_stats[player][map][latency] = self.input_csv[(self.input_csv["player_ip"] == player) & (self.input_csv["latency"] == latency) & (self.input_csv['map'] == map)]                 
+                    # Create a copy to avoid SettingWithCopyWarning
+                    mask = ((self.input_csv["player_ip"] == player) & 
+                           (self.input_csv["latency"] == latency) & 
+                           (self.input_csv['map'] == map_name))
+                    self.players_stats[player][map_name][latency] = self.input_csv[mask].copy()
+
     def weapon_count(self):
         for player in self.players:
-            for map in self.input_csv['map'].unique():
+            for map_name in self.input_csv['map'].unique():
                 for latency in self.input_csv['latency'].unique():
-                    player_weapons_count = self.players_stats[player][map][latency]["weapon"].value_counts()
-                    for i, player_weapon_count in enumerate(player_weapons_count):
-                        self.players_stats[player][map][latency].loc[:,f'{player_weapons_count.keys()[i]}_kill_count'] = player_weapon_count
+                    player_data = self.players_stats[player][map_name][latency]
+                    if not player_data.empty:
+                        # Count individual weapons
+                        player_weapons_count = player_data["weapon"].value_counts()
+                        for weapon, count in player_weapons_count.items():
+                            player_data.loc[:, f'{weapon}_kill_count'] = count
+                        
+                        # Calculate category totals
+                        for category, weapons in self.weapon_categories.items():
+                            category_cols = [col for col in player_data.columns 
+                                           if any(weapon in col and '_kill_count' in col 
+                                                for weapon in weapons)]
+                            player_data.loc[:, f'{category}_kills'] = player_data[category_cols].sum(axis=1)
+                        
+                        # Update the stats dictionary
+                        self.players_stats[player][map_name][latency] = player_data
+
+    def calculate_percentages(self, df):
+        """Calculate weapon usage percentages"""
+        df.loc[:, 'total_kills'] = df['Short Range_kills'] + df['Long Range_kills']
+        
+        for category in self.weapon_categories.keys():
+            mask = df['total_kills'] != 0  # Avoid division by zero
+            df.loc[mask, f'{category}_percentage'] = (
+                df.loc[mask, f'{category}_kills'] / df.loc[mask, 'total_kills'] * 100
+            )
+            df.loc[~mask, f'{category}_percentage'] = 0  # Set to 0 where total_kills is 0
+            
+        return df
 
     def aggregate(self):
-        aggregated_df = pd.DataFrame()
+        # Create empty DataFrame with all necessary columns
+        first_valid_df = None
         for player in self.players:
-            for map in self.input_csv['map'].unique():
+            for map_name in self.input_csv['map'].unique():
                 for latency in self.input_csv['latency'].unique():
-                    aggregated_df = pd.concat([aggregated_df, self.players_stats[player][map][latency]],ignore_index = True)
+                    if not self.players_stats[player][map_name][latency].empty:
+                        first_valid_df = self.players_stats[player][map_name][latency]
+                        break
+                if first_valid_df is not None:
+                    break
+            if first_valid_df is not None:
+                break
+                
+        if first_valid_df is None:
+            raise ValueError("No valid data found")
             
-        aggregated_df.drop(columns={
+        aggregated_df = pd.DataFrame(columns=first_valid_df.columns)
+        
+        # Concatenate all data
+        for player in self.players:
+            for map_name in self.input_csv['map'].unique():
+                for latency in self.input_csv['latency'].unique():
+                    player_data = self.players_stats[player][map_name][latency]
+                    if not player_data.empty:
+                        aggregated_df = pd.concat([aggregated_df, player_data], ignore_index=True)
+            
+        # Drop unnecessary columns
+        columns_to_drop = [
             'timestamp', 'game_round', 'killer_ip', 'victim_ip', 'weapon_id',
             'log_line', 'event', 'killer_id', 'victim_id', 'weapon', 
             'score', 'points', 'player_id', 'log_score', 'player_ip'
-        }, inplace = True)
+        ]
+        aggregated_df.drop(columns=columns_to_drop, inplace=True)
+        
+        # Remove duplicates and calculate percentages
         aggregated_df = aggregated_df.drop_duplicates()
+        aggregated_df = self.calculate_percentages(aggregated_df)
+        
         return aggregated_df
 
     def extract(self):
-        #print(len(self.input_csv))
+        print("Filtering players...")
         self.filter_player()
+        print("Counting weapon usage...")
         self.weapon_count()
+        print("Aggregating data...")
         aggregated_csv = self.aggregate()
-        aggregated_csv.to_csv(output_path, index=False)
-        print(f"Weapon kill counts, player use counts, game round, map, latency are mapped into {output_path}")
-        
+        aggregated_csv.to_csv(self.output_csv, index=False)
+        print(f"Processed data saved to {self.output_csv}")
 
-
-# Columns needed: 
-# game_round,map,latency, weapon+_id, weapon, 
-# Create rows: f'{weapon}_count', f'{player}_count
-
-
-# Final DF
-# round, map, latency, weapon_count, player_count
 if __name__ == "__main__":
     from config import PROCESSED_DATA_FOLDER
-    input_path = f'{PROCESSED_DATA_FOLDER}/ignore_suicides.csv' ##path
-    output_path = f'{PROCESSED_DATA_FOLDER}/processed_killWeapons_data.csv' ##path
+    input_path = f'{PROCESSED_DATA_FOLDER}/ignore_suicides.csv'
+    output_path = f'{PROCESSED_DATA_FOLDER}/processed_killWeapons_data.csv'
     processor = WeaponStatsExtractor(input_path, output_path)
     processor.extract()
-
-    
-    
-'''
- What to do:
- 
- use player_IP as a filter, and in each player get the total number of weapon kill counts
- so that it could be used to filtering in streamlit
- '''   

@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from config import PROCESSED_DATA_FOLDER
+from config import BEAU_FOLDER
 
 # Set the page to wide mode
 st.set_page_config(layout="wide")
@@ -10,8 +10,8 @@ st.set_page_config(layout="wide")
 @st.cache_data
 def load_data():
     try:
-        kills_data = pd.read_csv(f'{PROCESSED_DATA_FOLDER}/processed_kills_data.csv')
-        deaths_data = pd.read_csv(f'{PROCESSED_DATA_FOLDER}/processed_deaths_data.csv')
+        kills_data = pd.read_csv(f'{BEAU_FOLDER}/processed_kills_data.csv')
+        deaths_data = pd.read_csv(f'{BEAU_FOLDER}/processed_deaths_data.csv')
         return kills_data, deaths_data
     except Exception as e:
         st.error(f"Error loading the processed data: {str(e)}")

@@ -2,9 +2,10 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+from plotly.subplots import make_subplots
 from scipy import stats
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict
 import json
 from config import PROCESSED_DATA_FOLDER
 import streamlit as st
@@ -38,12 +39,22 @@ class DataLoader:
         self.data_folder = PROCESSED_DATA_FOLDER
 
     def load_data(self, data_type: str = "kills") -> pd.DataFrame:
+        if data_type == "performance":
+            return self._cached_load_performance_data(self.data_folder)
         return self._cached_load_data(self.data_folder, data_type)
 
     @staticmethod
     @st.cache_data
     def _cached_load_data(data_folder: str, data_type: str) -> pd.DataFrame:
         return pd.read_csv(f'{data_folder}/processed_{data_type}_data.csv')
+
+    @staticmethod
+    @st.cache_data
+    def _cached_load_performance_data(data_folder: str) -> pd.DataFrame:
+        df = pd.read_csv(f'{data_folder}/player_performance.csv')
+        # Extract player ID from player_ip column
+        df['player'] = df['player_ip']
+        return df
 
     @staticmethod
     @st.cache_data
@@ -92,12 +103,21 @@ class StatisticalAnalyzer:
         }
 
 class PlotGenerator:
-    # Define color scheme as a class variable for consistency
     COLOR_MAP = {
         'Affected': 'red',
         'Non-Affected': 'blue',
         'Unknown': 'gray',
-        'Between Groups': 'green'  # Added for between groups comparison
+        'Between Groups': 'green'
+    }
+
+    WEAPON_COLORS = {
+        'MOD_ROCKET': px.colors.qualitative.Set3[0],
+        'MOD_PLASMA': px.colors.qualitative.Set3[1],
+        'MOD_GRENADE': px.colors.qualitative.Set3[2],
+        'MOD_SHOTGUN': px.colors.qualitative.Set3[3],
+        'MOD_MACHINEGUN': px.colors.qualitative.Set3[4],
+        'MOD_LIGHTNING': px.colors.qualitative.Set3[5],
+        'MOD_RAILGUN': px.colors.qualitative.Set3[6]
     }
 
     @staticmethod
@@ -352,6 +372,92 @@ class PlotGenerator:
             yshift=10,
             xshift=10,
             font=dict(size=10, color="red")
+        )
+        
+        return fig
+    
+    @staticmethod
+    def create_weapon_distribution_plot(df: pd.DataFrame, latencies: List[float], 
+                                    categories: List[str], weapon_mapping: Dict) -> go.Figure:
+        """Create a grid of pie charts showing weapon distribution"""
+        num_rows = len(categories)
+        num_cols = len(latencies)
+        
+        subplot_titles = [f"{category} - {latency}ms" 
+                        for category in categories 
+                        for latency in latencies]
+        
+        fig = make_subplots(
+            rows=num_rows, cols=num_cols,
+            specs=[[{'type':'pie'}]*num_cols]*num_rows,
+            subplot_titles=subplot_titles,
+            horizontal_spacing=0.02,
+            vertical_spacing=0.1
+        )
+        
+        for i, category in enumerate(categories, 1):
+            for j, latency in enumerate(latencies, 1):
+                mask = (df['latency'] == latency) & (df['player_category'] == category)
+                filtered_df = df[mask]
+                
+                weapon_data = {}
+                for weapon, cols in weapon_mapping.items():
+                    weapon_data[weapon] = filtered_df[cols].sum().sum()
+                
+                non_zero_data = {k: v for k, v in weapon_data.items() if v > 0}
+                
+                if non_zero_data:
+                    sorted_weapons = sorted(non_zero_data.keys())
+                    values = [non_zero_data[weapon] for weapon in sorted_weapons]
+                    colors = [PlotGenerator.WEAPON_COLORS[weapon] for weapon in sorted_weapons]
+                    labels = [weapon.replace('MOD_', '') for weapon in sorted_weapons]
+                    
+                    fig.add_trace(
+                        go.Pie(
+                            values=values,
+                            labels=labels,
+                            showlegend=True if i == 1 and j == 1 else False,
+                            marker=dict(colors=colors),
+                            hovertemplate="%{label}: %{value}<br>%{percent}<extra></extra>",
+                            textposition='inside',
+                            sort=False
+                        ),
+                        row=i, col=j
+                    )
+        
+        fig.update_layout(
+            height=400 * num_rows,
+            width=300 * num_cols,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.1,
+                xanchor="center",
+                x=0.5
+            ),
+            margin=dict(t=150, b=20, l=20, r=20)
+        )
+        
+        return fig
+
+    @staticmethod
+    def create_range_distribution_plot(category_data: pd.DataFrame, category: str) -> go.Figure:
+        """Create stacked bar chart for range distribution"""
+        fig = go.Figure(data=[
+            go.Bar(name='Short Range', x=category_data['latency'], 
+                y=category_data['Short Range_kills'],
+                marker_color=px.colors.qualitative.Set3[0]),
+            go.Bar(name='Long Range', x=category_data['latency'], 
+                y=category_data['Long Range_kills'],
+                marker_color=px.colors.qualitative.Set3[1])
+        ])
+        
+        fig.update_layout(
+            barmode='stack',
+            title=f'{category} Players - Weapon Range Distribution by Latency',
+            xaxis_title='Latency (ms)',
+            yaxis_title='Total Kills',
+            height=400
         )
         
         return fig

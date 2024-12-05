@@ -9,11 +9,11 @@ def welcome_page():
     # Load and display the logos
     with col1:
         logo1 = Image.open('Images/NBN.png')
-        st.image(logo1, use_container_width=True)
+        st.image(logo1)
 
     with col2:
         logo2 = Image.open('Images/UTS.png')
-        st.image(logo2, use_container_width=True)
+        st.image(logo2)
 
     st.title("Welcome to the Quake 3 Analysis Dashboard")
     
